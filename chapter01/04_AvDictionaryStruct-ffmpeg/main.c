@@ -42,7 +42,7 @@ int main(int argc, char **argv) {
 
     /** FFMPEG Error Code */
     int errorValue = 0;
-    printf("File Open Scucess\r\n");
+
     /** Format Context */
     AVFormatContext *formatContext = NULL;
 
