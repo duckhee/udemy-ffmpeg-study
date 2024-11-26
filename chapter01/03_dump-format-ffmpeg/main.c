@@ -13,7 +13,9 @@
 #include <stdbool.h>
 
 #if defined(WIN32) || defined(WIN64)
+
 #include <Windows.h>
+
 #endif
 
 #define BUFFER_MAX                      1024
@@ -38,7 +40,7 @@ int main(int argc, char **argv) {
 
     /** FFMPEG Error Code */
     int errorValue = 0;
-    printf("File Open Scucess\r\n");
+    printf("File Open Success\r\n");
     /** Format Context */
     AVFormatContext *formatContext = NULL;
 

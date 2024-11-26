@@ -14,7 +14,9 @@
 #include <stdbool.h>
 
 #if defined(WIN32) || defined(WIN64)
+
 #include <Windows.h>
+
 #endif
 
 #define BUFFER_MAX                      1024
@@ -55,10 +57,10 @@ int main(int argc, char **argv) {
     }
 
     printf("File Open Success\r\n");
-
+    int count = 0;
     /** meta 정보에 대해서 가져 오기 -> 반복해서 값을 가져온다. */
     while ((dictionaryEntry = av_dict_get(formatContext->metadata, "", dictionaryEntry, AV_DICT_IGNORE_SUFFIX))) {
-        printf("%s : %s\r\n", dictionaryEntry->key, dictionaryEntry->value);
+        printf("[%d]%s : %s\r\n", count++, dictionaryEntry->key, dictionaryEntry->value);
     }
 
     /** context 에 대한 resource 반환 */
