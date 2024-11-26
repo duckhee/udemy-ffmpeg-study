@@ -13,7 +13,9 @@
 #include <stdbool.h>
 
 #if defined(WIN32) || defined(WIN64)
+
 #include <Windows.h>
+
 #endif
 
 #define BUFFER_MAX                      1024
@@ -46,7 +48,7 @@ int main(int argc, char **argv) {
     errorValue = avformat_open_input(&formatContext, filePath, NULL, NULL);
     if (errorValue < 0) {
         printf("Get Failed to open file\r\n");
-        av_log(NULL, AV_LOG_ERROR, "Error Opening File");
+        av_log(NULL, AV_LOG_ERROR, "Error Opening File\r\n");
         return -1;
     }
 
