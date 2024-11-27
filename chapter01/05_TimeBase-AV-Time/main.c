@@ -68,7 +68,7 @@ int main(int argc, char **argv) {
     FormatDuration(duration);
 
     avformat_close_input(&pAvContext);
-
+    avformat_free_context(pAvContext);
     fclose(pFile);
     return 0;
 }
