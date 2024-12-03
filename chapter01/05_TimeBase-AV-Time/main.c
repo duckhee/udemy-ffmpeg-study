@@ -1,3 +1,5 @@
+#define _CRT_SECURE_NO_WARNINGS
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <memory.h>
@@ -5,7 +7,9 @@
 #include <stdbool.h>
 
 #if defined(WIN32) || defined(WIN64)
+
 #include <Windows.h>
+
 #endif
 
 #define BUFFER_MAX                                      1024
@@ -18,14 +22,14 @@
 #include <libavutil/imgutils.h>
 #include <libswscale/swscale.h>
 
-bool GetResourcePath(const char *name, char *const pathBuffer);
+bool GetResourcePath(const char *name, char *pathBuffer);
 
 void FormatDuration(int64_t duration);
 
 int main(int argc, char **argv) {
     char videoPath[BUFFER_MAX] = "../../resources/murage.mp4";
-    FILE *pFile;
-    AVFormatContext *pAvContext;
+    FILE *pFile = NULL;
+    AVFormatContext *pAvContext = NULL;
     AVDictionaryEntry *dictionaryEntry = NULL;
     int ffmpegErrorCode = 0;
 
@@ -33,8 +37,8 @@ int main(int argc, char **argv) {
         printf("Failed Get Resource Path...\r\n");
         return -1;
     }
-
-    if ((pFile = fopen(videoPath, "rb")) == NULL) {
+    pFile = fopen(videoPath, "rb");
+    if (pFile == NULL) {
         printf("Failed Open Video File....\r\n");
         return -1;
     }
@@ -92,6 +96,7 @@ bool GetResourcePath(const char *name, char *const pathBuffer) {
     }
 
     removeEndIdx = (int) (pRemoveStart - executeBuffer);
+    memset(pathBuffer, '\0', sizeof(char) * BUFFER_MAX);
     memcpy(pathBuffer, executeBuffer, sizeof(char) * removeEndIdx);
 
 
