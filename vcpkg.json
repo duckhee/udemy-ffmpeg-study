@@ -11,5 +11,8 @@
   }, {
     "name" : "ffmpeg",
     "version>=" : "7.0.2#4"
+  }, {
+    "name" : "stb",
+    "version>=" : "2024-07-29#1"
   } ]
 }
