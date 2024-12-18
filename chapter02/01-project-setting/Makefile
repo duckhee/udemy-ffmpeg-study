@@ -32,7 +32,7 @@ createdirs:
 	$(shell mkdir ${BUILD_DIR})
 
 pre: $(SRCS)
-	$(CC) $(CFLAGS) $(CLIBS) -E < -o $(BUILD_DIR)/$(patsubst %.c,%.i,$<)
+	$(CC) $(CFLAGS) $(CLIBS) -E $< -o $(BUILD_DIR)/$(patsubst %.c,%.i,$<)
 
 assemble: $(SRCS)
 	$(CC) $(CFLAGS) $(CLIBS) -S $< -o $(BUILD_DIR)/$(patsubst %.c,%.s,$<)

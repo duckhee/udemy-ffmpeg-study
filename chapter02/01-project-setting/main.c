@@ -19,6 +19,12 @@
 
 bool GetResourcePath(const char *name, char *const pathBuffer);
 
+/**
+ * Linux에서는 memory 에 대한 leak 을 확인하기 위해서 valgrind 를 이용을 한다.
+ * => valgrind <program>
+ * Mac에서는 memory 에 대한 leak 을 확인하기 위해서 leaks 를 이용해서 메모리에 대한 확인을 한다.
+ * => leaks --atExit -- <program>
+ * */
 
 int main(int argc, char **argv) {
     printf("FFMPEG Programming !\r\n");
@@ -55,3 +61,4 @@ bool GetResourcePath(const char *name, char *const pathBuffer) {
     strcat(pathBuffer, name);
     return true;
 }
+
