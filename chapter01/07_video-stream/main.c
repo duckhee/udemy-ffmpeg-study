@@ -14,13 +14,13 @@
 #define BUFFER_MAX                          1024
 
 #define FFMPEG_ERROR(errorCode, msg)    \
-({                                      \
+{                                       \
 if((errorCode) < (0)){                  \
 av_log(NULL, AV_LOG_ERROR, (msg));      \
 return -1;                              \
 }else{                                  \
 }                                       \
-})
+}
 
 #if defined(WIN32) || defined(WIN64)
 #include <Windows.h>
