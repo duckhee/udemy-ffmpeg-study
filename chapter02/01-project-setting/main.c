@@ -10,9 +10,13 @@
 #include <libavutil/common.h>
 #include <libavutil/avutil.h>
 #include <libavutil/imgutils.h>
+#include <stb_image.h>
+#include <stb_image_write.h>
 
 #if defined(WIN32) || defined(WIN64)
+
 #include <Windows.h>
+
 #endif
 
 #define BUFFER_MAX                      1024
@@ -39,7 +43,7 @@ bool GetResourcePath(const char *name, char *const pathBuffer) {
 
 #if defined(WIN32) || defined(WIN64)
     GetCurrentDirectory(BUFFER_MAX, executeBuffer);
-    pRemoveStart = strstr("\\cmake");
+    pRemoveStart = strstr(executeBuffer, "\\cmake");
 #else
     realpath(".", executeBuffer);
     pRemoveStart = strstr(executeBuffer, "/cmake");
