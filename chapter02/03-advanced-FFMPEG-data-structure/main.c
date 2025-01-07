@@ -35,7 +35,7 @@ bool GetResourcePath(const char *name, char *const pathBuffer);
 int main(int argc, char **argv) {
     char imagePath[BUFFER_MAX] = {0,};
     AVFormatContext *pAvFormatContext = NULL;
-    /** 원본 데ㅐ이터에 대해서 가지고 있는 구조체이다. 원본 데이터는 바이트 단위로 정의가 되어 있다. */
+    /** 원본 데이터에 대해서 가지고 있는 구조체이다. 원본 데이터는 바이트 단위로 정의가 되어 있다. */
     AVPacket *pAvPacket = NULL;
     /** 원본 오디오 및 비디오 데이터를 풀어 놓은 데이터를 담는 구조체이다. */
     AVFrame *pAvFrame = NULL;
