@@ -10,6 +10,8 @@
 #include <libavutil/common.h>
 #include <libavutil/avutil.h>
 #include <libavutil/imgutils.h>
+#include <stb_image.h>
+#include <stb_image_write.h>
 
 #if defined(WIN32) || defined(WIN64)
 
