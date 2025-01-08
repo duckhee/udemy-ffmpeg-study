@@ -4,7 +4,7 @@ OBJDUMP = objdump
 
 SRCS = main.c
 
-TARGET = chapter0204AllocatedMemoryFFMPEG_VideoData
+TARGET = chapter0205FindVideoStream
 
 BUILD_DIR = buildDir
 
