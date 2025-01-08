@@ -7,7 +7,7 @@ message("chapter02-03 advanced FFMPEG Data Structure")
 add_executable(chapter0203AdvancedFFMPEGDataStructure)
 
 find_package(FFMPEG REQUIRED)
-find_package(stb REQUIRED)
+find_package(Stb REQUIRED)
 
 if (${FFMPEG_FOUND})
     target_include_directories(chapter0203AdvancedFFMPEGDataStructure PRIVATE
@@ -20,14 +20,14 @@ else (${FFMPEG_FOUND})
     message(STATUS "This program need to FFMPEG ${FFMPEG_FOUND}")
 endif ()
 
-if (${stb_FOUND})
+if (${Stb_FOUND})
     target_include_directories(chapter0203AdvancedFFMPEGDataStructure PRIVATE
-            ${stb_INCLUDE_DIRS}
+            ${Stb_INCLUDE_DIRS}
     )
     target_link_libraries(chapter0203AdvancedFFMPEGDataStructure LINK_PRIVATE
-            ${stb_LIBRARIES}
+            ${Stb_LIBRARIES}
     )
-else (${stb_FOUND})
+else (${Stb_FOUND})
     message(STATUS "This program need to std ${std_FOUND}")
 endif ()
 

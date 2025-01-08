@@ -6,3 +6,5 @@ set(CMAKE_C_STANDARD 11)
 
 add_subdirectory(chapter01)
 add_subdirectory(chapter02)
+
+add_subdirectory(FFMPEG-Books)
