@@ -223,13 +223,13 @@ int main(int argc, char **argv) {
     release:
     if (pAudioCodecContext != NULL)
         avcodec_free_context(&pAudioCodecContext);
-    
+
     if (pVideoCodecContext != NULL)
         avcodec_free_context(&pVideoCodecContext);
     avformat_close_input(&pAvFormatContext);
     av_packet_free(&pAvPacket);
-//    av_frame_free(&pAvFrame);
-    av_free(pAvFrame);
+    av_frame_free(&pAvFrame);
+//    av_free(pAvFrame);
     return 0;
 }
 
