@@ -218,6 +218,8 @@ int main(int argc, char **argv) {
         else if (pAvPacket->stream_index == audioStreamChannelIdx) {
             printf("Found a Audio packet\r\n");
         }
+        /** 사용한 packet에 대한 정리 -> 연결 정보에 대한 초기화 및 포인터 초기화 */
+        av_packet_unref(pAvPacket);
         packetCount++;
         if (packetCount == 20) {
             break;
