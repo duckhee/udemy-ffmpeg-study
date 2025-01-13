@@ -35,6 +35,9 @@ return -1;                           \
 
 bool GetResourcePath(const char *name, char *const pathBuffer);
 
+/** Decode video packet get grayScale Image */
+int DecodeVideoPacket_GreyFrame(AVPacket *packet, AVCodecContext *codecContext, AVFrame *avFrame);
+
 int main(int argc, char **argv) {
     char resourcePath[BUFFER_MAX] = {0};
     int errorCode = -1;
@@ -44,12 +47,12 @@ int main(int argc, char **argv) {
     AVFrame *pFrame = NULL;
 
     AVCodecParameters *pVideoCodecParameters = NULL;
-    AVCodec *pVideoCodec = NULL;
+    const AVCodec *pVideoCodec;
     AVCodecContext *pVideoCodecContext = NULL;
     int videoStreamIdx = 0;
 
     AVCodecParameters *pAudioCodecParameter = NULL;
-    AVCodec *pAudioCodec = NULL;
+    const AVCodec *pAudioCodec;
     AVCodecContext *pAudioCodecContext = NULL;
     int audioStreamIdx = 0;
 
@@ -94,7 +97,7 @@ int main(int argc, char **argv) {
 
     for (int idx = 0; idx < pFormatContext->nb_streams; ++idx) {
         AVCodecParameters *pCurCodecParameter = NULL;
-        AVCodec *pCurCodec = NULL;
+        const AVCodec *pCurCodec;
         AVStream *pCurStream = NULL;
 
         /** found current stream */
@@ -212,11 +215,12 @@ int main(int argc, char **argv) {
     while (av_read_frame(pFormatContext, pPacket) >= 0) {
         /** video frame read  */
         if (pPacket->stream_index == videoStreamIdx) {
-            printf("Found Video Frame Packet!\r\n");
+//            printf("Found Video Frame Packet!\r\n");
+            DecodeVideoPacket_GreyFrame(pPacket, pVideoCodecContext, pFrame);
         }
             /** audio frame read */
         else if (pPacket->stream_index == audioStreamIdx) {
-            printf("Found Audio Frame Packet!\r\n");
+//            printf("Found Audio Frame Packet!\r\n");
         }
         /** reference free */
         av_packet_unref(pPacket);
@@ -261,4 +265,51 @@ bool GetResourcePath(const char *name, char *const pathBuffer) {
 #endif
     strcat(pathBuffer, name);
     return true;
+}
+
+/** 비디오에서는 패킷당 한 장면만 읽어온다. */
+/** Decode video packet get grayScale Image */
+int DecodeVideoPacket_GreyFrame(AVPacket *packet, AVCodecContext *codecContext, AVFrame *avFrame) {
+    int returnValue = 0;
+    /** Send Compressed packet for decompression */
+    returnValue = avcodec_send_packet(codecContext, packet);
+    if (returnValue < 0) {
+        av_log(NULL, AV_LOG_ERROR, "[FFMPEG ERROR](%d) Sending packet to dcoder\r\n", returnValue);
+    }
+
+    while (returnValue >= 0) {
+        /** Receive decompressed frame */
+        returnValue = avcodec_receive_frame(codecContext, avFrame);
+        /** get failed frame status and end */
+        if (returnValue == AVERROR(EAGAIN) || returnValue == AVERROR_EOF) {
+            av_frame_unref(avFrame);
+            break;
+        }
+            /** Error receive frame */
+        else if (returnValue < 0) {
+            av_log(NULL, AV_LOG_ERROR, "[FFMPEG ERROR](%d) Receive frame\r\n", returnValue);
+        }
+            /** image data get */
+        else {
+
+            /** we have a picture */
+            printf("Frame number %lld (type = %c frame, size = %dbytes, width=%d, height=%d) pts %lld key_frame %d [DTS %lld]\r\n",
+                   codecContext->frame_num,
+                   av_get_picture_type_char(avFrame->pict_type),
+                   packet->size,
+                   avFrame->width,
+                   avFrame->height,
+                   avFrame->pts,
+                   avFrame->key_frame,
+//                   avFrame->flags,
+//                   avFrame->pict_type, // key frame is I Frame
+//                   packet->dts
+                   avFrame->pkt_dts
+            );
+
+        }
+
+    }
+
+    return returnValue;
 }
