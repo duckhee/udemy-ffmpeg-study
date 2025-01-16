@@ -37,8 +37,15 @@ bool GetResourcePath(const char *name, char *const pathBuffer);
 /** Decode video packet get grayScale Image */
 int DecodeVideoPacket_GreyFrame(AVPacket *packet, AVCodecContext *codecContext, AVFrame *avFrame);
 
+/** Decode video packet get rgbScale Image */
+int DecodeVideoPacket_RGBFrame(AVPacket *packet, AVCodecContext *pCodecContext, AVFrame *pFrame, AVFrame *pRgbFrame,
+                               struct SwsContext *pSwsContext);
+
 /** save frame gray scale image */
 void SaveGreyFrameToPPM(uint8_t *pixels, int wrap, int imageHeight, int imageWidth, char *filename);
+
+/** save frame color swscale image */
+void SaveRGBFrame(unsigned char *buf, int wrap, int ySize, int xSize, char *filename);
 
 int main(int argc, char **argv) {
     char resourcePath[BUFFER_MAX] = {0};
@@ -52,12 +59,16 @@ int main(int argc, char **argv) {
     AVCodecParameters *pVideoCodecParameters = NULL;
     const AVCodec *pVideoCodec;
     AVCodecContext *pVideoCodecContext = NULL;
-    int videoStreamIdx = 0;
+    int videoStreamIdx = -1;
 
     AVCodecParameters *pAudioCodecParameter = NULL;
     const AVCodec *pAudioCodec;
     AVCodecContext *pAudioCodecContext = NULL;
-    int audioStreamIdx = 0;
+    int audioStreamIdx = -1;
+
+    /** frame image software scale structure */
+    struct SwsContext *pSwsContext = NULL;
+
 
     char saveFilePath[BUFFER_MAX] = {0};
 
@@ -80,7 +91,6 @@ int main(int argc, char **argv) {
     if (errorCode < 0) {
         av_log(NULL, AV_LOG_ERROR, "[FFMPEG ERROR](%d) find Stream Failed...\r\n", errorCode);
         goto ffmpeg_release;
-
     }
 
     /** packet structure memory load */
@@ -88,7 +98,6 @@ int main(int argc, char **argv) {
     if (pPacket == NULL) {
         av_log(NULL, AV_LOG_ERROR, "Failed Load packet structure...\r\n");
         goto ffmpeg_release;
-
     }
 
     /** frame structure memory load */
@@ -96,15 +105,8 @@ int main(int argc, char **argv) {
     if (pFrame == NULL) {
         av_log(NULL, AV_LOG_ERROR, "Failed Load frame structure...\r\n");
         goto ffmpeg_release;
-
     }
 
-    /** RGB Frame Structure memory load */
-    pRGBFrame = av_frame_alloc();
-    if (pRGBFrame == NULL) {
-        av_log(NULL, AV_LOG_ERROR, "Failed Load frame structure...\r\n");
-        goto ffmpeg_release;
-    }
 
     printf("number of stream : %d\r\n", pFormatContext->nb_streams);
 
@@ -219,20 +221,32 @@ int main(int argc, char **argv) {
         goto ffmpeg_release;
     }
 
-    int packetCount = 0;
+    /** soft ware scale context get */
+    pSwsContext = sws_getContext(pVideoCodecContext->width, pVideoCodecContext->height, pVideoCodecContext->pix_fmt,
+                                 pVideoCodecContext->width, pVideoCodecContext->height, AV_PIX_FMT_RGB24, SWS_BILINEAR,
+                                 NULL, NULL, NULL);
 
+    /** RGB Frame Structure memory load */
+    pRGBFrame = av_frame_alloc();
+    if (pRGBFrame == NULL) {
+        av_log(NULL, AV_LOG_ERROR, "Failed Load frame structure...\r\n");
+        goto ffmpeg_release;
+    }
 
     /** rgb channel data type defined -> get image size */
-    int rgbFrameNumberOfByte = av_image_get_buffer_size(AV_PIX_FMT_RGB24, pVideoCodecContext->width,
-                                                        pVideoCodecContext->height, 1);
+    int rgbFrameNumberOfBytes = av_image_get_buffer_size(AV_PIX_FMT_RGB24, pVideoCodecContext->width,
+                                                         pVideoCodecContext->height, 1);
     /** get RGB Frame Buffer -> allocated image size buffer */
-    uint8_t *pRGBFrameBuffer = av_malloc(rgbFrameNumberOfByte);
+    uint8_t *rgbFrameBuffer = av_malloc(rgbFrameNumberOfBytes);
     /** frame buffer set image pixel */
-    errorCode = av_image_fill_arrays(pRGBFrame->data, pRGBFrame->linesize, (uint8_t *) pRGBFrameBuffer, AV_PIX_FMT_RGB4,
+    errorCode = av_image_fill_arrays(pRGBFrame->data, pRGBFrame->linesize, (uint8_t *) rgbFrameBuffer,
+                                     AV_PIX_FMT_BGR24,
                                      pVideoCodecContext->width, pVideoCodecContext->height, 1);
 
-    av_frame_unref(pRGBFrame);
-    av_free(pRGBFrameBuffer);
+    /** make color frame */
+//    DecodeVideoPacket_RGBFrame(pPacket, pVideoCodecContext, pFrame, pRGBFrame, pSwsContext);
+//    av_frame_unref(pRGBFrame);
+//    av_free(pRGBFrameBuffer);
     if (errorCode < 0) {
         av_log(NULL, AV_LOG_ERROR, "[FFMPEG_ERROR](%d) RGB Image Copy Buffer Failed...\r\n", errorCode);
     }
@@ -241,12 +255,15 @@ int main(int argc, char **argv) {
     pRGBFrame->width = pVideoCodecContext->width;
     pRGBFrame->height = pVideoCodecContext->height;
 
+    int packetCount = 0;
+
     /** Read Frame */
     while (av_read_frame(pFormatContext, pPacket) >= 0) {
         /** video frame read  */
         if (pPacket->stream_index == videoStreamIdx) {
 //            printf("Found Video Frame Packet!\r\n");
-            DecodeVideoPacket_GreyFrame(pPacket, pVideoCodecContext, pFrame);
+//            DecodeVideoPacket_GreyFrame(pPacket, pVideoCodecContext, pFrame);
+            DecodeVideoPacket_RGBFrame(pPacket, pVideoCodecContext, pFrame, pRGBFrame, pSwsContext);
         }
             /** audio frame read */
         else if (pPacket->stream_index == audioStreamIdx) {
@@ -265,14 +282,16 @@ int main(int argc, char **argv) {
     printf("Read Video Done!\r\n");
 
     ffmpeg_release:
+    /** software scale context remove */
+    sws_freeContext(pSwsContext);
     /** release resource */
     av_frame_free(&pFrame);
     av_frame_free(&pRGBFrame);
+    av_packet_free(&pPacket);
 
     avcodec_free_context(&pVideoCodecContext);
     avcodec_free_context(&pAudioCodecContext);
 
-    av_packet_free(&pPacket);
     avformat_close_input(&pFormatContext);
 }
 
@@ -328,6 +347,7 @@ int DecodeVideoPacket_GreyFrame(AVPacket *packet, AVCodecContext *codecContext, 
             /** receive frame error */
         else if (result < 0) {
             av_log(NULL, AV_LOG_ERROR, "[FFMPEG_ERROR](%d) Receive Frame Failed...\r\n", result);
+            return result;
         }
             /** receive frame */
         else {
@@ -361,11 +381,82 @@ int DecodeVideoPacket_GreyFrame(AVPacket *packet, AVCodecContext *codecContext, 
     return result;
 }
 
+
+/** Decode video packet get rgbScale Image */
+int DecodeVideoPacket_RGBFrame(AVPacket *packet, AVCodecContext *pCodecContext, AVFrame *pFrame, AVFrame *pRgbFrame,
+                               struct SwsContext *pSwsContext) {
+    int result = 0;
+    /** send decompressed packet for decompression */
+    result = avcodec_send_packet(pCodecContext, packet);
+    if (result < 0) {
+        av_log(NULL, AV_LOG_ERROR, "[FFMPEG](%d)code context send to packet Error ...\r\n", result);
+        return result;
+    }
+
+
+    while (result >= 0) {
+        /** receive decompressed frame */
+        result = avcodec_receive_frame(pCodecContext, pFrame);
+        if (result == AVERROR(EAGAIN) || result == AVERROR_EOF) {
+            av_frame_unref(pFrame);
+            break;
+        }
+            /** receive frame error */
+        else if (result < 0) {
+            av_log(NULL, AV_LOG_ERROR, "[FFMPEG_ERROR](%d) Receive Frame Failed...\r\n", result);
+        }
+            /** receive frame */
+        else {
+            /** we have a picture */
+            printf("Frame number %lld (type = %c frame, size = %dbytes, width=%d, height=%d) pts %lld key_frame %d [DTS %lld]\r\n",
+                   pCodecContext->frame_num,
+                   av_get_picture_type_char(pFrame->pict_type),
+                   packet->size,
+                   pFrame->width,
+                   pFrame->height,
+                   pFrame->pts,
+                   pFrame->key_frame,
+                   pFrame->pkt_dts
+            );
+            /** save file */
+            char savePathBuffer[BUFFER_MAX] = {0};
+            char fileNameBuffer[40] = {0,};
+#if defined(WIN32) || defined(WIN64)
+            sprintf(fileNameBuffer, "\\GeneratedColorImage\\testColorPPM.ppm");
+#else
+            sprintf(fileNameBuffer, "/GeneratedColorImage/color.ppm");
+#endif
+            if (!GetResourcePath(fileNameBuffer, savePathBuffer)) {
+                printf("Failed Get Resource Path...\r\n");
+            }
+            /** 영상의 프레임을 인자로 받아서 해당 프레임을 나눠서 이미지를 스케일링을 시켜준다. */
+            result = sws_scale(pSwsContext, (unsigned char const *const *) (pFrame->data), pFrame->linesize, 0,
+                               pCodecContext->height, pRgbFrame->data, pRgbFrame->linesize);
+            if (result < 0) {
+                av_log(NULL, AV_LOG_ERROR, "[FFMPEG](%d)software scale Failed...\r\n", result);
+//                av_frame_unref(pFrame);
+//                av_frame_free(&pFrame);
+                return result;
+            }
+
+            /** Save Color Frame */
+            SaveRGBFrame(pRgbFrame->data[0], pRgbFrame->linesize[0], pRgbFrame->height, pRgbFrame->width,
+                         savePathBuffer);
+        }
+    }
+
+    return result;
+}
+
 /** save frame gray scale image */
 void SaveGreyFrameToPPM(uint8_t *pixels, int wrap, int imageHeight, int imageWidth, char *filename) {
 
     FILE *pFile = fopen(filename, "w");
 //    fopen_s(&pFile, filename, "w");
+
+    if (pFile == NULL) {
+        return;
+    }
     assert(pFile != NULL);
 
     /** write file PPM File Header */
@@ -377,6 +468,31 @@ void SaveGreyFrameToPPM(uint8_t *pixels, int wrap, int imageHeight, int imageWid
         /** write Data using PPM File format */
         fwrite(ch, sizeof(char), imageWidth, pFile);
     }
+
+    fclose(pFile);
+}
+
+/** save frame color swscale image */
+void SaveRGBFrame(unsigned char *buf, int wrap, int ySize, int xSize, char *filename) {
+    FILE *pFile;
+
+    pFile = fopen(filename, "wb");
+
+    if (pFile == NULL) {
+        printf("Failed file open ... %s\r\n", filename);
+        return;
+    }
+    assert(pFile != NULL);
+
+    /** file header information setting color */
+    fprintf(pFile, "P6\n%d %d\n%d\n", xSize, ySize, 255);
+    printf("write");
+    /** write frame data */
+    for (int i = 0; i < ySize; i++) {
+        unsigned char *ch = (buf + i * wrap);
+        fwrite(ch, 1, xSize * 3, pFile);
+    }
+
 
     fclose(pFile);
 }

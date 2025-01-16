@@ -52,12 +52,16 @@ int main(int argc, char **argv) {
     AVCodecParameters *pVideoCodecParameters = NULL;
     const AVCodec *pVideoCodec;
     AVCodecContext *pVideoCodecContext = NULL;
-    int videoStreamIdx = 0;
+    int videoStreamIdx = -1;
 
     AVCodecParameters *pAudioCodecParameter = NULL;
     const AVCodec *pAudioCodec;
     AVCodecContext *pAudioCodecContext = NULL;
-    int audioStreamIdx = 0;
+    int audioStreamIdx = -1;
+
+    /** frame image software scale structure */
+    struct SwsContext *pSwsContext = NULL;
+
 
     char saveFilePath[BUFFER_MAX] = {0};
 
@@ -80,7 +84,6 @@ int main(int argc, char **argv) {
     if (errorCode < 0) {
         av_log(NULL, AV_LOG_ERROR, "[FFMPEG ERROR](%d) find Stream Failed...\r\n", errorCode);
         goto ffmpeg_release;
-
     }
 
     /** packet structure memory load */
@@ -88,7 +91,6 @@ int main(int argc, char **argv) {
     if (pPacket == NULL) {
         av_log(NULL, AV_LOG_ERROR, "Failed Load packet structure...\r\n");
         goto ffmpeg_release;
-
     }
 
     /** frame structure memory load */
@@ -96,7 +98,6 @@ int main(int argc, char **argv) {
     if (pFrame == NULL) {
         av_log(NULL, AV_LOG_ERROR, "Failed Load frame structure...\r\n");
         goto ffmpeg_release;
-
     }
 
     /** RGB Frame Structure memory load */
@@ -219,8 +220,11 @@ int main(int argc, char **argv) {
         goto ffmpeg_release;
     }
 
-    int packetCount = 0;
-
+    /** soft ware scale context get */
+    pSwsContext = sws_getContext(pVideoCodecContext->width, pVideoCodecContext->height, pVideoCodecContext->pix_fmt,
+                                 pVideoCodecContext->width,
+                                 pVideoCodecContext->height, AV_PIX_FMT_RGB24, SWS_BILINEAR,
+                                 NULL, NULL, NULL);
 
     /** rgb channel data type defined -> get image size */
     int rgbFrameNumberOfByte = av_image_get_buffer_size(AV_PIX_FMT_RGB24, pVideoCodecContext->width,
@@ -240,6 +244,8 @@ int main(int argc, char **argv) {
     /** setting rgb frame size */
     pRGBFrame->width = pVideoCodecContext->width;
     pRGBFrame->height = pVideoCodecContext->height;
+
+    int packetCount = 0;
 
     /** Read Frame */
     while (av_read_frame(pFormatContext, pPacket) >= 0) {
@@ -265,14 +271,16 @@ int main(int argc, char **argv) {
     printf("Read Video Done!\r\n");
 
     ffmpeg_release:
+    /** software scale context remove */
+    sws_freeContext(pSwsContext);
     /** release resource */
     av_frame_free(&pFrame);
     av_frame_free(&pRGBFrame);
+    av_packet_free(&pPacket);
 
     avcodec_free_context(&pVideoCodecContext);
     avcodec_free_context(&pAudioCodecContext);
 
-    av_packet_free(&pPacket);
     avformat_close_input(&pFormatContext);
 }
 
