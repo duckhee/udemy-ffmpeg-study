@@ -16,7 +16,9 @@
 #include <assert.h>
 
 #if defined(WIN32) || defined(WIN64)
+
 #include <Windows.h>
+
 #endif
 
 #define BUFFER_MAX                  1024
@@ -30,6 +32,8 @@ return -1;                           \
 }                                     \
 }                                    \
 
+#define REINTERPRET_CAST(type, variable) C_CAST(type, variable)
+#define C_CAST(type, variable) ((type)variable)
 
 
 bool GetResourcePath(const char *name, char *const pathBuffer);
@@ -46,6 +50,11 @@ void SaveGreyFrameToPPM(uint8_t *pixels, int wrap, int imageHeight, int imageWid
 
 /** save frame color swscale image */
 void SaveRGBFrame(unsigned char *buf, int wrap, int ySize, int xSize, char *filename);
+
+/** Save Audio Stream data */
+int DecodeAudioPacket(AVPacket *pPacket, AVCodecContext *pAudioCodecContext, AVFrame *pFrame, FILE *pAudioFile);
+
+float ExtractAudioSample(AVCodecContext *pAudioCodecContext, uint8_t *data, int channelNumber);
 
 int main(int argc, char **argv) {
     char resourcePath[BUFFER_MAX] = {0};
@@ -76,7 +85,21 @@ int main(int argc, char **argv) {
         printf("Failed Get out.mp4 resource path...\r\n");
         return -1;
     }
-
+    /** save audio file name */
+    char audioResourcePath[BUFFER_MAX] = {0};
+    char audioFileName[50] = {0};
+#if defined(WIN32) || defined(WIN64)
+    sprintf(audioFileName, "\\GeneratedAudio\\audioData.raw");
+#else
+    sprintf(audioFileName, "/GeneratedAudio/audioData.raw");
+#endif
+    if (!GetResourcePath(audioFileName, audioResourcePath)) {
+        printf("Failed Make Audio File Save Path...\r\n");
+        goto ffmpeg_release;
+    }
+    FILE *pAudioFile = NULL;
+    pAudioFile = fopen(audioResourcePath, "wb+");
+    assert(pAudioFile != NULL);
 
     printf("resource path - %s\r\n", resourcePath);
     /** ffmpeg file open */
@@ -263,11 +286,14 @@ int main(int argc, char **argv) {
         if (pPacket->stream_index == videoStreamIdx) {
 //            printf("Found Video Frame Packet!\r\n");
 //            DecodeVideoPacket_GreyFrame(pPacket, pVideoCodecContext, pFrame);
-            DecodeVideoPacket_RGBFrame(pPacket, pVideoCodecContext, pFrame, pRGBFrame, pSwsContext);
+//            DecodeVideoPacket_RGBFrame(pPacket, pVideoCodecContext, pFrame, pRGBFrame, pSwsContext);
         }
             /** audio frame read */
         else if (pPacket->stream_index == audioStreamIdx) {
 //            printf("Found Audio Frame Packet!\r\n");
+
+            /** Decoding Audio File */
+            DecodeAudioPacket(pPacket, pAudioCodecContext, pFrame, pAudioFile);
 
         }
         /** reference free */
@@ -275,11 +301,10 @@ int main(int argc, char **argv) {
         packetCount++;
 
         /** 20 Frame Image and audio data */
-        if (packetCount == 20) {
-            break;
+        if (packetCount == 200) {
+//            break;
         }
     }
-
 
 
     printf("Read Video Done!\r\n");
@@ -296,6 +321,7 @@ int main(int argc, char **argv) {
     avcodec_free_context(&pAudioCodecContext);
 
     avformat_close_input(&pFormatContext);
+    fclose(pAudioFile);
 }
 
 
@@ -498,4 +524,107 @@ void SaveRGBFrame(unsigned char *buf, int wrap, int ySize, int xSize, char *file
 
 
     fclose(pFile);
+}
+
+
+int DecodeAudioPacket(AVPacket *pPacket, AVCodecContext *pAudioCodecContext, AVFrame *pFrame, FILE *pAudioFile) {
+    int returnValue = 0;
+    /** get audio data packet */
+    returnValue = avcodec_send_packet(pAudioCodecContext, pPacket);
+    if (returnValue < 0) {
+        av_log(NULL, AV_LOG_ERROR, "[FFMPEG_ERROR](%d) sending packet to audio decode\r\n", returnValue);
+    }
+    /** audio data get packet */
+    while (returnValue >= 0) {
+        returnValue = avcodec_receive_frame(pAudioCodecContext, pFrame);
+        if (returnValue == AVERROR(EAGAIN) || returnValue == AVERROR_EOF) {
+            av_frame_unref(pFrame);
+            break;
+        } else if (returnValue < 0) {
+            av_log(NULL, AV_LOG_ERROR, "[FFMPEG_ERROR](%d)Receive audio stream ...\r\n", returnValue);
+        } else {
+            /** we have a audio */
+            printf("Frame number %lld (Samples = %d frame, size = %dbytes(%dbytes), Channels = %d) pts %lld key_frame %d [%s]\r\n",
+                   pAudioCodecContext->frame_num,
+                   pFrame->nb_samples,
+                   pFrame->pkt_size,
+                   pPacket->size,
+                   pFrame->ch_layout.nb_channels,
+                   pFrame->pts,
+                   pFrame->key_frame,
+                   av_get_sample_fmt_name(pAudioCodecContext->sample_fmt)
+            );
+
+            /** audio data size get */
+            int audioDataSize = av_get_bytes_per_sample(pAudioCodecContext->sample_fmt);
+            if (av_sample_fmt_is_planar(pAudioCodecContext->sample_fmt) == 1) {
+                for (int i = 0; i < pFrame->nb_samples; i++) {
+                    for (int j = 0; j < pAudioCodecContext->ch_layout.nb_channels; j++) {
+                        float sample = ExtractAudioSample(pAudioCodecContext, pFrame->extended_data[j], i);
+                        fwrite(&sample, sizeof(float), 1, pAudioFile);
+                    }
+                }
+            }
+
+        }
+    }
+
+    return returnValue;
+}
+
+float ExtractAudioSample(AVCodecContext *codecCtx, uint8_t *buffer, int sampleIndex) {
+    int64_t val = 0;
+    float ret = 0;
+    int sampleSize = av_get_bytes_per_sample(codecCtx->sample_fmt);
+    switch (sampleSize) {
+        case 1:
+            // 8bit samples are always unsigned
+            val = ((uint8_t *) buffer)[sampleIndex];
+            // make signeda
+            val -= 127;
+            break;
+        case 2:
+            val = ((int16_t *) buffer)[sampleIndex];
+            break;
+
+        case 4:
+            val = ((int32_t *) buffer)[sampleIndex];
+            break;
+
+        case 8:
+            val = ((int64_t *) buffer)[sampleIndex];
+            break;
+        default:
+            fprintf(stderr, "Invalid sample size %d.\n", sampleSize);
+            return 0;
+    }
+
+    switch (codecCtx->sample_fmt) {
+        case AV_SAMPLE_FMT_U8:
+        case AV_SAMPLE_FMT_S16:
+        case AV_SAMPLE_FMT_S32:
+        case AV_SAMPLE_FMT_U8P:
+        case AV_SAMPLE_FMT_S16P:
+        case AV_SAMPLE_FMT_S32P:
+            // integer => Scale to [-1, 1] and convert to float.
+            ret = val / ((float) ((1 << (sampleSize * 8 - 1)) - 1));
+            break;
+
+        case AV_SAMPLE_FMT_FLT:
+        case AV_SAMPLE_FMT_FLTP:
+            // float => reinterpret
+            ret = *REINTERPRET_CAST(float*, &val);
+            break;
+
+        case AV_SAMPLE_FMT_DBL:
+        case AV_SAMPLE_FMT_DBLP:
+            // double => reinterpret and then static cast down
+            ret = *((float *) &val);
+            break;
+
+        default:
+            fprintf(stderr, "Invalid sample format %s.\n", av_get_sample_fmt_name(codecCtx->sample_fmt));
+            return 0;
+    }
+    return ret;
 }
