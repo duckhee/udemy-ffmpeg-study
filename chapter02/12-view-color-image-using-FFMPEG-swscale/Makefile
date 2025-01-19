@@ -4,7 +4,7 @@ OBJDUMP = objdump
 
 SRCS = main.c
 
-TARGET = chapter0211ViewColorImageUsingFFMPEG
+TARGET = chapter0212ViewingColorImageUsingSwScaleSetting
 
 BUILD_DIR = buildDir
 
