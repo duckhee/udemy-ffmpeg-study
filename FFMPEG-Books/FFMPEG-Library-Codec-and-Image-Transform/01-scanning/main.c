@@ -19,6 +19,8 @@ bool GetResourcePath(const char *name, char *const pathBuffer);
 int main(int argc, char **argv) {
     /** FFMPEG 에서 동영상에 대한 Container 를 담아 주기 위한 구조체 선언 */
     AVFormatContext *pAvFormatContext = NULL;
+    /** FFMPEG Container에서 CodecParameter에 대한 정보를 담고 있기 위한 구조체 */
+//    AVCodecParameters *pAvCodecParameters = NULL;
     int errorCode = 0;
     /** Log에 대한 사용할 레벨을 디버깅 레벨로 설정 한다. -> Debug 정보에 대해서 출력을 해준다. */
     av_log_set_level(AV_LOG_DEBUG);
@@ -56,8 +58,8 @@ int main(int argc, char **argv) {
     /** 유효한 스트림에 대해서 순회를 하면서 정보 출력 */
     for (int index = 0; index < pAvFormatContext->nb_streams; index++) {
         /** Codec에 대한 파라미터에 대한 정보를 가져오기 */
-        AVCodecParameters *pAvCodecParameters = pAvFormatContext->streams[index]->codecpar;
-
+        AVCodecParameters *pAvCodecParameters = NULL;
+        pAvCodecParameters = pAvFormatContext->streams[index]->codecpar;
         /** 스트림의 타입이 비디오 타입일 경우 */
         if (AVMEDIA_TYPE_VIDEO == pAvCodecParameters->codec_type) {
             printf("-------------- Video Information --------------\r\n");
@@ -81,6 +83,13 @@ int main(int argc, char **argv) {
 
             printf("------------------------------------------\r\n\r\n");
         }
+    }
+
+
+    FFMPEG_RELEASE:
+
+    if (pAvFormatContext != NULL) {
+        avformat_close_input(&pAvFormatContext);
     }
 
     return 0;
