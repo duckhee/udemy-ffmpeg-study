@@ -4,3 +4,4 @@ project(FFMPEGLibraryCodecandImageTransform)
 
 add_subdirectory(01-scanning)
 add_subdirectory(02-demuxing)
+add_subdirectory(03-remuxing)
