@@ -254,6 +254,7 @@ int create_output(const char *filename, const VideoContext *pVideoContext, Video
         } else {
             outputContext->audio_idx = out_idx++;
         }
+        avcodec_free_context(&pOutputCodecContext);
     }
 
     /** 파일에 동영상 복제 */
