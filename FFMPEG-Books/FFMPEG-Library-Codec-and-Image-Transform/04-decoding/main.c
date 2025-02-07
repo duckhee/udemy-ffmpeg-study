@@ -47,6 +47,7 @@ int main(int argc, char **argv) {
 
     VideoContext input_ctx;
     VideoContext output_ctx;
+    output_ctx.fmt_ctx = NULL;
 
     AVPacket *pPacket;
     AVFrame *pFrame;
@@ -66,11 +67,18 @@ int main(int argc, char **argv) {
         return -1;
     }
 
-    if (open_decoder(input_ctx.video_codec_ctx) < 0 && open_decoder(input_ctx.audio_codec_ctx) < 0) {
+    if (open_decoder(input_ctx.video_codec_ctx) < 0) {
         av_log(NULL, AV_LOG_ERROR, "[FFMPEG]Failed to open decode....\r\n");
         Release(&input_ctx, NULL);
         return -1;
     }
+
+    if (open_decoder(input_ctx.audio_codec_ctx) < 0) {
+        av_log(NULL, AV_LOG_ERROR, "[FFMPEG]Failed to open decode....\r\n");
+        Release(&input_ctx, NULL);
+        return -1;
+    }
+
 
     /** packet에 대한 객체 메모리 할당 */
     pPacket = av_packet_alloc();
@@ -95,19 +103,37 @@ int main(int argc, char **argv) {
 
         /** stream 가져오기 */
         AVStream *pStream = input_ctx.fmt_ctx->streams[pPacket->stream_index];
-
+        AVCodecParameters *pParam = pStream->codecpar;
+        const AVCodec *PCodec = avcodec_find_decoder(pParam->codec_id);
         if (pPacket->stream_index == input_ctx.video_idx) {
 
             /** packet에 대한 rescale */
 //            av_packet_rescale_ts(pPacket, pStream->time_base, input_ctx.video_codec_ctx->time_base);
-
+            /** Frame 에 대한 rate 을 가져오기 -> av_q2d는 AVRational 데이터를 double 형태의 값으로 변환을 하는 함수이다. */
+            /**
+             * stream 에 있는 r_frame_rate 는 실제 frame 에 대한 rate 값을 가져온다.
+             * stream 에 있는 avg_frame_rate 는 frame 에 대한 평균 rate 값을 가져온다.
+             * */
+            double frameRate = av_q2d(pStream[pPacket->stream_index].r_frame_rate);
             /** decoding packet */
             decode_packet(input_ctx.video_codec_ctx, pPacket, &pFrame, &got_frame);
-
+            /** 가져온 정보를 확인하기 위한 출력 */
+            printf("\r\ncodec ID : %d\r\nCodec : %s, BitRate : %lld\r\nWidth: %d, Height: %d, FrameRate : %lf fps\r\n",
+                   pParam->codec_id, PCodec->name, pParam->bit_rate,
+                   pParam->width,
+                   pParam->height,
+                   frameRate);
             /** codec context 제거 */
 //            avcodec_free_context(&input_ctx.video_codec_ctx);
         } else if (pPacket->stream_index == input_ctx.audio_idx) {
-
+            /** Audio에 대한 정보 출력 */
+            printf("ID : %d\r\nCodec : %s, BitRate : %lld\r\nChannel : %d, SampleRate : %d\r\n\r\n",
+                   pParam->codec_id, PCodec->name, pParam->bit_rate,
+                   pPacket->stream_index,
+                   pParam->sample_rate
+            );
+            /** decoding packet */
+            decode_packet(input_ctx.audio_codec_ctx, pPacket, &pFrame, &got_frame);
         }
         /** packet에 대한 reference 해제 */
         av_packet_unref(pPacket);
@@ -307,6 +333,7 @@ int decode_video(AVCodecContext *pCodecContext, AVFrame *pFrame, int *got_frame,
 
 int decode_audio(AVCodecContext *pCodecContext, AVFrame *pFrame, int *got_frame, const AVPacket *pPacket) {
 //    printf("decode audio!\r\n");
+
     int ret = 0;
     ret = avcodec_send_packet(pCodecContext, pPacket);
     if (ret < 0) {
@@ -330,7 +357,6 @@ int decode_audio(AVCodecContext *pCodecContext, AVFrame *pFrame, int *got_frame,
         av_frame_unref(pFrame);
     }
     return ret;
-    return 0;
 }
 
 void Release(VideoContext *pReadContext, VideoContext *pWriteContext) {
@@ -345,7 +371,7 @@ void Release(VideoContext *pReadContext, VideoContext *pWriteContext) {
         pReadContext->audio_codec_ctx = NULL;
     }
     if (pWriteContext != NULL && pWriteContext->fmt_ctx != NULL) {
-        if (!(pWriteContext->fmt_ctx->oformat->flags & AVFMT_NOFILE)) {
+        if (pWriteContext->fmt_ctx->oformat != NULL && (!(pWriteContext->fmt_ctx->oformat->flags & AVFMT_NOFILE))) {
             avio_closep(&pWriteContext->fmt_ctx->pb);
         }
         avformat_free_context(pWriteContext->fmt_ctx);
