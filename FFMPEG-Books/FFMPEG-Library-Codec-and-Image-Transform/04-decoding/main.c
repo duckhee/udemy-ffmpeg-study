@@ -69,6 +69,18 @@ int main(int argc, char **argv) {
     pFrame = av_frame_alloc();
 
 
+    while (true) {
+        ret = av_read_frame(input_ctx.fmt_ctx, pPacket);
+        if (ret == AVERROR_EOF) {
+            printf("End of Frame!\r\n");
+            break;
+        }
+
+        /** packet에 대한 reference 해제 */
+        av_packet_unref(pPacket);
+        /** frame 레퍼런스 해제 */
+//        av_frame_unref(pFrame);
+    }
 
 
     /** packet에 대한 메모리 해제 */
@@ -177,10 +189,18 @@ int open_decoder(AVCodecContext *pCodecContext) {
 int decode_packet(AVCodecContext *pCodecContext, AVPacket *pPacket, AVFrame **pFrame, int *got_frame) {
     /** channel에 따라 decoding 할 함수 */
     int (*decode_func)(AVCodecContext *pCodec_ctx, AVFrame *pFrame, int *got_frame, const AVPacket *pPacket);
+    int decode_size;
 
     decode_func = pCodecContext->codec_type == AVMEDIA_TYPE_VIDEO ? decode_video : decode_audio;
 
     /** decode size */
+    decode_size = decode_func(pCodecContext, *pFrame, got_frame, pPacket);
+
+    if (*got_frame) {
+
+//        (*pFrame)->pts = av_frame_get_best_effort_timestamp(*pFrame);
+    }
+    return decode_size;
 }
 
 int decode_video(AVCodecContext *pCodecContext, AVFrame *pFrame, int *got_frame, const AVPacket *pPacket) {
