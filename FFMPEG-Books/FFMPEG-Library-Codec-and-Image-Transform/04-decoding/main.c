@@ -19,6 +19,8 @@
 
 typedef struct fmt_ctx {
     AVFormatContext *fmt_ctx;
+    AVCodecContext *video_codec_ctx;
+    AVCodecContext *audio_codec_ctx;
     int video_idx;
     int audio_idx;
 } VideoContext;
@@ -60,6 +62,13 @@ int main(int argc, char **argv) {
 
     if (open_input(resourcePath, &input_ctx) < 0) {
         printf("Failed FFMPEG Open..\r\n");
+        Release(&input_ctx, NULL);
+        return -1;
+    }
+
+    if (open_decoder(input_ctx.video_codec_ctx) < 0 && open_decoder(input_ctx.audio_codec_ctx) < 0) {
+        av_log(NULL, AV_LOG_ERROR, "[FFMPEG]Failed to open decode....\r\n");
+        Release(&input_ctx, NULL);
         return -1;
     }
 
@@ -68,6 +77,7 @@ int main(int argc, char **argv) {
     /** frame에 대한 객체 메모리 할당 */
     pFrame = av_frame_alloc();
 
+    int got_frame = 0;
 
     while (true) {
         ret = av_read_frame(input_ctx.fmt_ctx, pPacket);
@@ -76,6 +86,29 @@ int main(int argc, char **argv) {
             break;
         }
 
+        /** decoding 할 video stream or audio stream 아닐 경우 */
+        if (pPacket->stream_index != input_ctx.video_idx && pPacket->stream_index != input_ctx.audio_idx) {
+            /** packet은 데이터를 한 번 읽어주면 다음에 초기화를 해줘야 한다. */
+            av_packet_unref(pPacket);
+            continue;
+        }
+
+        /** stream 가져오기 */
+        AVStream *pStream = input_ctx.fmt_ctx->streams[pPacket->stream_index];
+
+        if (pPacket->stream_index == input_ctx.video_idx) {
+
+            /** packet에 대한 rescale */
+//            av_packet_rescale_ts(pPacket, pStream->time_base, input_ctx.video_codec_ctx->time_base);
+
+            /** decoding packet */
+            decode_packet(input_ctx.video_codec_ctx, pPacket, &pFrame, &got_frame);
+
+            /** codec context 제거 */
+//            avcodec_free_context(&input_ctx.video_codec_ctx);
+        } else if (pPacket->stream_index == input_ctx.audio_idx) {
+
+        }
         /** packet에 대한 reference 해제 */
         av_packet_unref(pPacket);
         /** frame 레퍼런스 해제 */
@@ -150,16 +183,43 @@ int open_input(const char *filename, VideoContext *outVideoContext) {
     for (idx = 0; idx < outVideoContext->fmt_ctx->nb_streams; ++idx) {
         /** Codec에 대한 Parameter 정보를 가지고 잇느 구조체 생성 */
         AVCodecParameters *pCodecParameters = outVideoContext->fmt_ctx->streams[idx]->codecpar;
-
+        const AVCodec *pCodec = avcodec_find_decoder(pCodecParameters->codec_id);
+        if (pCodec == NULL) {
+            av_log(NULL, AV_LOG_ERROR, "[FFMPEG]Failed to find Codec...\r\n");
+            return -1;
+        }
         /** Video Type 인 경우 */
         if (pCodecParameters->codec_type == AVMEDIA_TYPE_VIDEO && outVideoContext->video_idx < 0) {
             outVideoContext->video_idx = idx;
+
+            outVideoContext->video_codec_ctx = avcodec_alloc_context3(pCodec);
+            if (outVideoContext->video_codec_ctx == NULL) {
+                av_log(NULL, AV_LOG_ERROR, "[FFMPEG]Create Codec Context...\r\n");
+                return -1;
+            }
+            errCode = avcodec_parameters_to_context(outVideoContext->video_codec_ctx, pCodecParameters);
+            if (errCode < 0) {
+                av_log(NULL, AV_LOG_ERROR, "[FFMPEG](%d)Failed to codec parameter copy to decode....\r\n", errCode);
+                return -1;
+            }
         }
             /** Audio Type 인 경우 */
         else if (pCodecParameters->codec_type == AVMEDIA_TYPE_AUDIO && outVideoContext->audio_idx < 0) {
             outVideoContext->audio_idx = idx;
+
+            outVideoContext->audio_codec_ctx = avcodec_alloc_context3(pCodec);
+            if (outVideoContext->audio_codec_ctx == NULL) {
+                av_log(NULL, AV_LOG_ERROR, "[FFMPEG]Create Codec Context...\r\n");
+                return -1;
+            }
+            errCode = avcodec_parameters_to_context(outVideoContext->audio_codec_ctx, pCodecParameters);
+            if (errCode < 0) {
+                av_log(NULL, AV_LOG_ERROR, "[FFMPEG](%d)Failed to codec parameter copy to decode....\r\n", errCode);
+                return -1;
+            }
         }
     }
+
     /** stream을 찾지 못했을 경우 */
     if (outVideoContext->video_idx < 0 && outVideoContext->audio_idx < 0) {
         av_log(NULL, AV_LOG_ERROR, "Failed Get Stream Idx...\r\n");
@@ -198,27 +258,91 @@ int decode_packet(AVCodecContext *pCodecContext, AVPacket *pPacket, AVFrame **pF
 
     if (*got_frame) {
 
-//        (*pFrame)->pts = av_frame_get_best_effort_timestamp(*pFrame);
+        (*pFrame)->pts = (*pFrame)->best_effort_timestamp;
     }
     return decode_size;
 }
 
 int decode_video(AVCodecContext *pCodecContext, AVFrame *pFrame, int *got_frame, const AVPacket *pPacket) {
-    printf("decode video!\r\n");
-    return 0l;
+//    printf("decode video!\r\n");
+    int ret = 0;
+    ret = avcodec_send_packet(pCodecContext, pPacket);
+    if (ret < 0) {
+        av_log(NULL, AV_LOG_ERROR, "[FFMPEG](%d)Send packet to decode context...\r\n", ret);
+    }
+    while (ret >= 0) {
+        ret = avcodec_receive_frame(pCodecContext, pFrame);
+        if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
+            av_frame_unref(pFrame);
+            break;
+        } else if (ret < 0) {
+            av_log(NULL, AV_LOG_ERROR, "[FFMPEG](%d)Receive Frame...\r\n", ret);
+        } else {
+            printf("-----------------------\n");
+            printf("Video : frame->width, height : %dx%d\n",
+                   pFrame->width, pFrame->height);
+            printf("Video : frame->sample_aspect_ratio : %d/%d\n",
+                   pFrame->sample_aspect_ratio.num, pFrame->sample_aspect_ratio.den);
+            printf("Frame number %lld (type = %c frame, size = %dbytes, width=%d, height=%d) pts %lld key_frame %d [DTS %lld]\r\n",
+                   pCodecContext->frame_num,
+                   av_get_picture_type_char(pFrame->pict_type),
+                   pPacket->size,
+                   pFrame->width,
+                   pFrame->height,
+//                   pFrame->pts,
+                   pPacket->pts,
+                   pFrame->key_frame,
+//                   pFrame->flags,
+//                   pFrame->pict_type, // key frame is I Frame
+//                   pPacket->dts
+                   pFrame->pkt_dts
+            );
+
+
+        }
+        av_frame_unref(pFrame);
+    }
+    return ret;
 }
 
 int decode_audio(AVCodecContext *pCodecContext, AVFrame *pFrame, int *got_frame, const AVPacket *pPacket) {
-    printf("decode audio!\r\n");
+//    printf("decode audio!\r\n");
+    int ret = 0;
+    ret = avcodec_send_packet(pCodecContext, pPacket);
+    if (ret < 0) {
+        av_log(NULL, AV_LOG_ERROR, "[FFMPEG](%d)Send packet to decode context...\r\n", ret);
+    }
+    while (ret >= 0) {
+        ret = avcodec_receive_frame(pCodecContext, pFrame);
+        if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
+            av_frame_unref(pFrame);
+            break;
+        } else if (ret < 0) {
+            av_log(NULL, AV_LOG_ERROR, "[FFMPEG](%d)Receive Frame...\r\n", ret);
+        } else {
+            printf("-----------------------\n");
+            printf("Audio : frame->nb_samples : %d\n",
+                   pFrame->nb_samples);
+            printf("Audio : frame->channels : %d\n",
+                   pFrame->ch_layout.nb_channels);
+
+        }
+        av_frame_unref(pFrame);
+    }
+    return ret;
     return 0;
 }
 
 void Release(VideoContext *pReadContext, VideoContext *pWriteContext) {
     if (pReadContext != NULL) {
         avformat_close_input(&pReadContext->fmt_ctx);
+        avcodec_free_context(&pReadContext->video_codec_ctx);
+        avcodec_free_context(&pReadContext->audio_codec_ctx);
         pReadContext->video_idx = -1;
         pReadContext->audio_idx = -1;
         pReadContext->fmt_ctx = NULL;
+        pReadContext->video_codec_ctx = NULL;
+        pReadContext->audio_codec_ctx = NULL;
     }
     if (pWriteContext != NULL && pWriteContext->fmt_ctx != NULL) {
         if (!(pWriteContext->fmt_ctx->oformat->flags & AVFMT_NOFILE)) {
