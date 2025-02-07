@@ -28,6 +28,14 @@ bool GetResourcePath(const char *name, char *const pathBuffer);
 
 int open_input(const char *filename, VideoContext *outVideoContext);
 
+int open_decoder(AVCodecContext *pCodecContext);
+
+int decode_packet(AVCodecContext *pCodecContext, AVPacket *pPacket, AVFrame **pFrame, int *got_frame);
+
+int decode_video(AVCodecContext *pCodecContext, AVFrame *pFrame, int *got_frame, const AVPacket *pPacket);
+
+int decode_audio(AVCodecContext *pCodecContext, AVFrame *pFrame, int *got_frame, const AVPacket *pPacket);
+
 void Release(VideoContext *pContext, VideoContext *pWriteContext);
 
 int main(int argc, char **argv) {
@@ -145,6 +153,43 @@ int open_input(const char *filename, VideoContext *outVideoContext) {
         av_log(NULL, AV_LOG_ERROR, "Failed Get Stream Idx...\r\n");
         return -3;
     }
+    return 0;
+}
+
+int open_decoder(AVCodecContext *pCodecContext) {
+    int ret = 0;
+    /** Find Codec */
+    const AVCodec *pCodec = avcodec_find_decoder(pCodecContext->codec_id);
+    if (pCodec == NULL) {
+        av_log(NULL, AV_LOG_ERROR, "[FFMPEG]Failed to Find Codec...\r\n");
+        return -1;
+    }
+
+    /** Codec Open */
+    if (avcodec_open2(pCodecContext, pCodec, NULL) < 0) {
+        printf("Failed to open Codec...\r\n");
+        return -2;
+    }
+    return 0;
+}
+
+
+int decode_packet(AVCodecContext *pCodecContext, AVPacket *pPacket, AVFrame **pFrame, int *got_frame) {
+    /** channel에 따라 decoding 할 함수 */
+    int (*decode_func)(AVCodecContext *pCodec_ctx, AVFrame *pFrame, int *got_frame, const AVPacket *pPacket);
+
+    decode_func = pCodecContext->codec_type == AVMEDIA_TYPE_VIDEO ? decode_video : decode_audio;
+
+    /** decode size */
+}
+
+int decode_video(AVCodecContext *pCodecContext, AVFrame *pFrame, int *got_frame, const AVPacket *pPacket) {
+    printf("decode video!\r\n");
+    return 0l;
+}
+
+int decode_audio(AVCodecContext *pCodecContext, AVFrame *pFrame, int *got_frame, const AVPacket *pPacket) {
+    printf("decode audio!\r\n");
     return 0;
 }
 
