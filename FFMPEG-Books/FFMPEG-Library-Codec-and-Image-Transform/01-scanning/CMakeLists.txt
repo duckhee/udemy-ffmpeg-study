@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.27)
 
 project(Scanning LANGUAGES C VERSION 0.0.1)
 
-message("01 scanning")
+message("01-scanning")
 
 add_executable(Scanning)
 

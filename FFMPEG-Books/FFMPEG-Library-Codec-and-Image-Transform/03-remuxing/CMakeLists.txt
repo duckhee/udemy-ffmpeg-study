@@ -4,7 +4,7 @@ project(Remuxing LANGUAGES C VERSION 0.0.1)
 
 add_executable(Remuxing)
 
-message("03 remuxing")
+message("03-remuxing")
 
 find_package(FFMPEG REQUIRED)
 

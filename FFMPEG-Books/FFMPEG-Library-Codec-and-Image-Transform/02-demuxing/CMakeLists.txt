@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.27)
 
 project(Demuxing LANGUAGES C VERSION 0.0.1)
 
-message("02 demuxing")
+message("02-demuxing")
 
 add_executable(Demuxing)
 
