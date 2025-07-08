@@ -10,7 +10,8 @@
     "version>=" : "2024-04-23"
   }, {
     "name" : "ffmpeg",
-    "version>=" : "7.0.2#4"
+    "version>=" : "7.0.2#4",
+    "features":["all"]
   }, {
     "name" : "stb",
     "version>=" : "2024-07-29#1"
