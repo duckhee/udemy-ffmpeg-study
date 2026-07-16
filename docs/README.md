@@ -1,6 +1,6 @@
 # FFmpeg 학습 문서
 
-이 저장소의 26개 레슨 코드를 단계별로 학습할 수 있도록 정리한 문서 모음이다. 각 레슨은 **기본 문서**(학습 목표 · 핵심 개념 · 프로그램 흐름 mermaid · 핵심 API)와 **딥다이브 문서**(`-deep-dive.md`, 코드 블록별 상세 해설)로 구성된다.
+이 저장소의 43개 레슨 코드를 단계별로 학습할 수 있도록 정리한 문서 모음이다. 각 레슨은 **기본 문서**(학습 목표 · 핵심 개념 · 프로그램 흐름 mermaid · 핵심 API)와 **딥다이브 문서**(`-deep-dive.md`, 코드 블록별 상세 해설)로 구성된다.
 
 빌드/실행 공통 안내는 저장소 루트의 [CLAUDE.md](../CLAUDE.md)를 참고한다.
 
@@ -20,7 +20,12 @@ flowchart LR
         direction TB
         C1["스캐닝 · 디먹싱"] --> C2["리먹싱"] --> C3["디코딩 (구조화)"]
     end
-    CH1 --> CH2 --> BOOKS
+    subgraph STUDY["study-FFMPEG — 처음부터 다시 배우는 통합 트랙"]
+        direction TB
+        D1["디먹싱 · 디코딩"] --> D2["스케일 · 리샘플"] --> D3["인코딩 · 먹싱"] --> D4["트랜스코딩 · 필터 · 시킹"]
+        D4 -.-> D5["부록: HW 가속 (macOS)"]
+    end
+    CH1 --> CH2 --> BOOKS --> STUDY
 ```
 
 ## 트랙 구성
@@ -30,6 +35,7 @@ flowchart LR
 | Chapter 01 | 컨테이너 열기, 메타데이터, 스트림/코덱 정보 조회 | 7 | [chapter01/README.md](chapter01/README.md) |
 | Chapter 02 | 패킷 추출, 프레임 디코딩, 이미지(PPM/JPEG)·오디오(PCM) 저장 | 15 | [chapter02/README.md](chapter02/README.md) |
 | FFMPEG-Books | 스캐닝·디먹싱·리먹싱·디코딩을 구조화된 코드로 재정리 | 4 | [ffmpeg-books/README.md](ffmpeg-books/README.md) |
+| study-FFMPEG | 기초→디코딩→변환→인코딩→먹싱→트랜스코딩→필터→시킹 완주 트랙 + HW 가속 부록 | 14+3 | [study-FFMPEG/README.md](study-FFMPEG/README.md) |
 
 ## 전체 레슨 인덱스
 
@@ -74,9 +80,36 @@ flowchart LR
 | 03 | Remuxing | 재인코딩 없는 컨테이너 변환, `av_packet_rescale_ts` | [기본](ffmpeg-books/03-remuxing.md) · [해설](ffmpeg-books/03-remuxing-deep-dive.md) |
 | 04 | Decoding | 스트림별 디코더, 함수 포인터 디스패치 | [기본](ffmpeg-books/04-decoding.md) · [해설](ffmpeg-books/04-decoding-deep-dive.md) |
 
+### study-FFMPEG — 처음부터 다시 배우는 통합 트랙 (본편)
+
+| # | 레슨 | 핵심 주제 | 문서 |
+|---|------|-----------|------|
+| 01 | 파일 열기 | `avformat_open_input`, 메타데이터, `av_dump_format` | [기본](study-FFMPEG/01-open-file.md) · [해설](study-FFMPEG/01-open-file-deep-dive.md) |
+| 02 | 스트림 정보 | `AVCodecParameters`, time_base, `AVChannelLayout` | [기본](study-FFMPEG/02-stream-info.md) · [해설](study-FFMPEG/02-stream-info-deep-dive.md) |
+| 03 | 디먹싱 | `av_read_frame`, pts/dts, 키프레임 | [기본](study-FFMPEG/03-demuxing-packets.md) · [해설](study-FFMPEG/03-demuxing-packets-deep-dive.md) |
+| 04 | 비디오 디코딩 | `avcodec_send_packet`/`receive_frame`, flush | [기본](study-FFMPEG/04-decode-video.md) · [해설](study-FFMPEG/04-decode-video-deep-dive.md) |
+| 05 | 오디오 디코딩 | 샘플 포맷, planar, `ch_layout` | [기본](study-FFMPEG/05-decode-audio.md) · [해설](study-FFMPEG/05-decode-audio-deep-dive.md) |
+| 06 | 스케일링 | `sws_scale` YUV→RGB + 리사이즈 | [기본](study-FFMPEG/06-scaling-video.md) · [해설](study-FFMPEG/06-scaling-video-deep-dive.md) |
+| 07 | 리샘플링 | `swr_convert` fltp→s16 44.1kHz | [기본](study-FFMPEG/07-resampling-audio.md) · [해설](study-FFMPEG/07-resampling-audio-deep-dive.md) |
+| 08 | 비디오 인코딩 | `avcodec_send_frame`/`receive_packet` | [기본](study-FFMPEG/08-encode-video.md) · [해설](study-FFMPEG/08-encode-video-deep-dive.md) |
+| 09 | 오디오 인코딩 | AAC, `frame_size`, ADTS | [기본](study-FFMPEG/09-encode-audio.md) · [해설](study-FFMPEG/09-encode-audio-deep-dive.md) |
+| 10 | 리먹싱 | mp4→mkv 스트림 카피 | [기본](study-FFMPEG/10-remuxing.md) · [해설](study-FFMPEG/10-remuxing-deep-dive.md) |
+| 11 | 먹싱 | 비디오+오디오 → mp4, `av_compare_ts` | [기본](study-FFMPEG/11-muxing.md) · [해설](study-FFMPEG/11-muxing-deep-dive.md) |
+| 12 | 트랜스코딩 | 디코드→스케일→재인코딩→먹싱 통합 | [기본](study-FFMPEG/12-transcoding.md) · [해설](study-FFMPEG/12-transcoding-deep-dive.md) |
+| 13 | 필터링 | libavfilter 그래프(hflip, drawbox) | [기본](study-FFMPEG/13-filtering-video.md) · [해설](study-FFMPEG/13-filtering-video-deep-dive.md) |
+| 14 | 시킹 | `av_seek_frame`, `avcodec_flush_buffers` | [기본](study-FFMPEG/14-seeking.md) · [해설](study-FFMPEG/14-seeking-deep-dive.md) |
+
+### study-FFMPEG — 부록: 하드웨어 가속 (macOS VideoToolbox)
+
+| # | 레슨 | 핵심 주제 | 문서 |
+|---|------|-----------|------|
+| HW-01 | HW 디바이스 열거 | `av_hwdevice_iterate_types`, `avcodec_get_hw_config` | [기본](study-FFMPEG/hw-accel/01-list-hw-devices.md) · [해설](study-FFMPEG/hw-accel/01-list-hw-devices-deep-dive.md) |
+| HW-02 | HW 디코딩 | `hw_device_ctx`, `av_hwframe_transfer_data` | [기본](study-FFMPEG/hw-accel/02-hw-decode.md) · [해설](study-FFMPEG/hw-accel/02-hw-decode-deep-dive.md) |
+| HW-03 | HW 인코딩 | `h264_videotoolbox` | [기본](study-FFMPEG/hw-accel/03-hw-encode.md) · [해설](study-FFMPEG/hw-accel/03-hw-encode-deep-dive.md) |
+
 ## 읽는 방법
 
-1. 순서대로: Chapter 01 → Chapter 02 → FFMPEG-Books 순으로 각 레슨의 **기본 문서**를 먼저 읽는다.
+1. 순서대로: Chapter 01 → Chapter 02 → FFMPEG-Books → study-FFMPEG 순으로 각 레슨의 **기본 문서**를 먼저 읽는다. FFmpeg를 처음부터 다시 정리하고 싶다면 study-FFMPEG 트랙만 완주해도 된다.
 2. 코드가 궁금할 때: 각 기본 문서 하단의 **딥다이브** 링크로 이동해 `main.c`를 블록별로 따라간다.
-3. 실습: 각 문서의 "실행 방법" 섹션대로 해당 타겟만 빌드해 실행한다. Chapter 01 입력은 `resources/murage.mp4`, Chapter 02와 FFMPEG-Books 입력은 `resources/out.mp4`다.
+3. 실습: 각 문서의 "실행 방법" 섹션대로 해당 타겟만 빌드해 실행한다. Chapter 01과 study-FFMPEG 입력은 `resources/murage.mp4`, Chapter 02와 FFMPEG-Books 입력은 `resources/out.mp4`다. study-FFMPEG 생성물은 `resources/GeneratedStudy/`에 저장된다.
 4. ⚠️ **알아두기** 노트는 강의 코드에 존재하는 사소한 버그/특이점 설명이다. 결과가 이상할 때 먼저 확인한다.
