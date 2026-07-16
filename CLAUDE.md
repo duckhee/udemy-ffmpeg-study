@@ -35,11 +35,12 @@ cmake --build cmake-build-debug
 ```
 
 - 입력 샘플: `resources/murage.mp4`
-- 출력물: `resources/GeneratedAudio/`, `resources/GeneratedGrayImage/`, `resources/GeneratedColorImage/`, `resources/out.mp4`
+- 출력물: `resources/GeneratedAudio/`, `resources/GeneratedGrayImage/`, `resources/GeneratedColorImage/`, `resources/GeneratedStudy/`(study-FFMPEG 트랙, 자동 생성), `resources/out.mp4`
 
 ## Architecture
 
-- 루트 `CMakeLists.txt`가 `chapter01/`, `chapter02/`, `FFMPEG-Books/`를 `add_subdirectory`로 포함하고, 각 챕터가 다시 레슨 디렉터리를 포함한다.
+- 루트 `CMakeLists.txt`가 `chapter01/`, `chapter02/`, `FFMPEG-Books/`, `study-FFMPEG/`를 `add_subdirectory`로 포함하고, 각 챕터가 다시 레슨 디렉터리를 포함한다.
+- `study-FFMPEG/`는 기초부터 트랜스코딩·필터·시킹까지 완주하는 독립 트랙(01~14)이며, `study-FFMPEG/hw-accel/`(VideoToolbox HW 가속 3개 레슨)은 `if(APPLE)` 가드로 macOS에서만 빌드된다. 타겟명은 `studyFFMPEG01OpenFile` / `studyFFMPEGHW01ListHwDevices` 형식. 이 vcpkg FFmpeg 빌드에는 libx264가 없어 인코딩 레슨(08/11/12)은 MPEG-4로 폴백한다.
 - 레슨 디렉터리 구조는 동일한 패턴: `CMakeLists.txt` + `main.c` 하나.
   - `project(chapterXXYYName LANGUAGES C VERSION 0.0.1)` — 타겟명 = 프로젝트명 (챕터+레슨 번호 PascalCase)
   - `find_package(FFMPEG REQUIRED)` → `${FFMPEG_INCLUDE_DIRS}` / `${FFMPEG_LIBRARIES}` 링크 (vcpkg 제공 FindFFMPEG, pkg-config 아님)

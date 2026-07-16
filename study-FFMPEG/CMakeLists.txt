@@ -1,0 +1,18 @@
+cmake_minimum_required(VERSION 3.27)
+
+add_subdirectory(01-open-file)
+add_subdirectory(02-stream-info)
+add_subdirectory(03-demuxing-packets)
+add_subdirectory(04-decode-video)
+add_subdirectory(05-decode-audio)
+add_subdirectory(06-scaling-video)
+add_subdirectory(07-resampling-audio)
+add_subdirectory(08-encode-video)
+add_subdirectory(09-encode-audio)
+add_subdirectory(10-remuxing)
+add_subdirectory(11-muxing)
+add_subdirectory(12-transcoding)
+add_subdirectory(13-filtering-video)
+add_subdirectory(14-seeking)
+
+add_subdirectory(hw-accel)

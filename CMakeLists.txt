@@ -8,3 +8,5 @@ add_subdirectory(chapter01)
 add_subdirectory(chapter02)
 
 add_subdirectory(FFMPEG-Books)
+
+add_subdirectory(study-FFMPEG)
